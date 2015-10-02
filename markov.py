@@ -1,5 +1,13 @@
 import sys
+import twitter
+import os
 from random import choice
+def process_dict(filename):
+    dict_set = set([])
+    dict_file = open(filename)
+    for line in dict_file:
+        dict_set.add(line)
+    return dict_set
 
 
 class MarkovMachine(object):
@@ -11,7 +19,7 @@ class MarkovMachine(object):
 
         for filename in filenames:
             text_file = open(filename)
-            body = body + text_file.read()
+            body = body + text_file.read().decode('utf-8')
             text_file.close()
 
         self.make_chains(body)
@@ -24,15 +32,21 @@ class MarkovMachine(object):
         words = corpus.split()
 
         for i in range(len(words) - 2):
+            #if words[i][0].isupper():
             key = (words[i], words[i + 1])
             value = words[i + 2]
-
+                
+            if words[i].isupper() or words[i+1].isupper():
+                continue
+            if value.isupper():
+                continue
             if key not in self.chains:
                 self.chains[key] = []
 
             self.chains[key].append(value)
 
-    def make_text(self):
+
+    def make_text(self, dictionary):
         """Takes dictionary of markov chains; returns random text."""
 
         key = choice(self.chains.keys())
@@ -49,16 +63,34 @@ class MarkovMachine(object):
             words.append(word)
             key = (key[1], word)
 
-        text = " ".join(words)
+        text = " ".join(words).encode('utf-8')
 
         # This is the clumsiest way to make sure it's never longer than
-        # 140 characters; can you think of better ways?
-        return text[:140]
+        # 140 characters; can you think of better ways
 
+        text_to_print = text[:140]
+        split_text = text_to_print.split(" ")
+        if split_text[len(split_text)-1].upper() in dictionary:
+            print text_to_print
+        else:
+            text_to_print = " ".join(split_text[:-1])
+            print text_to_print
+
+
+api = twitter.Api(consumer_key=os.environ["TWITTER_CONSUMER_KEY"],
+                      consumer_secret=os.environ["TWITTER_CONSUMER_SECRET"],
+                      access_token_key=os.environ["TWITTER_ACCESS_TOKEN_KEY"],
+                      access_token_secret=os.environ["TWITTER_ACCESS_TOKEN_SECRET"])
+
+print api.VerifyCredentials()
+  
 
 if __name__ == "__main__":
     filenames = sys.argv[1:]
 
+    dictionary = process_dict('dictionary.txt')
     generator = MarkovMachine()
     generator.read_files(filenames)
-    print generator.make_text()
+    generator.make_text(dictionary)
+    # status = api.PostUpdate(generator.make_text())
+    # print status.text
